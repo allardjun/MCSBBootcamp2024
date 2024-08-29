@@ -1,6 +1,6 @@
 % Load experimental data
 % Replace 'data.txt' with your actual data file name
-data = load('data.txt');
+data = load('bacterial_growth_data.csv');
 t_exp = data(:, 1);  % Assuming first column is time
 N_exp = data(:, 2);  % Assuming second column is bacterial population
 
@@ -13,16 +13,6 @@ title('Experimental Bacterial Growth Data');
 
 %% ----------------------------- %%
 
-
-
-% Example usage:
-% SSE = compute_sse(lambda, theta, alpha, N0, t_exp, N_exp);
-
-
-% Load experimental data
-data = load('data.txt');
-t_exp = data(:, 1);
-N_exp = data(:, 2);
 
 % Initial guess for parameters
 initial_guess = [1, 1000, 2];

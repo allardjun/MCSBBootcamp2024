@@ -19,3 +19,6 @@ plot(t, N);
 xlabel('Time');
 ylabel('Bacterial Population');
 title('Simulated Bacterial Growth');
+
+% Save results
+writematrix([t, N], 'bacterial_growth_data.csv');
