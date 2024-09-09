@@ -1,27 +1,36 @@
 # Teams
 
-Team Backdoor:
+Team Clock:
+* Chelsea
+* Ashish
+* Shing
 
-* Kyla
-* Ren
-* Rany
+Team Middle:
+* Gautham
+* Kate
 
-Team Chair Stack:
+Team Lectern:
 
-* Luke
-* Luis
-* Caroline
+* Ethan
+* Akarsh
+  
+Team Max Occupancy:
+
+* Yun
+* Sinai
+
+Team Cabinet:
+
+* Ana
+* Patrick
 
 Team Window:
+* Caleb
+* Melika
 
-* Zhishun
-* Jacy
-* Austin
 
-Team LCD:
 
-* Qingyuan
-* Arvind
-* Dylan
-* Abbey
+
+
+
 
