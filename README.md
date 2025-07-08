@@ -1,5 +1,5 @@
 
-# MCSB Bootcamp 2023
+# MCSB Bootcamp 2024
 
 Computational and mathematical modules for incoming students in the [Mathematical, Computational and Systems Biology graduate program](https://mcsb.uci.edu/). 
 
