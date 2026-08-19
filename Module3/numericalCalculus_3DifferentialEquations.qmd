@@ -1,0 +1,288 @@
+---
+title: "Numerical calculus 3: Differential equations"
+subtitle: "MCSB Bootcamp --- Module 3"
+author: "Jun Allard"
+jupyter: python3
+format:
+  html:
+    toc: true
+    number-sections: false
+  ipynb: default
+---
+
+The Python translation of `numericalCalculus_3DifferentialEquations.mlx`.
+
+```{python}
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_ivp
+```
+
+# 3. The differential equation
+
+## 3.1 The differential equation
+
+There are two ways to think about a differential equation.
+One is as a relationship between the derivatives of $u(t)$ and the function itself.
+
+- A population of *E. coli* in a large petri dish: $du/dt = 5u$
+- A charged biomolecule flying through a mass spectrometer: $m \, d^2u/dt^2 = -\zeta \, du/dt + q E_0$
+
+Any function $u(t)$ either satisfies the differential equation or it does not.
+Sometimes it is hard to guess the solution.
+
+- $u(t) = 27.3 \exp(5t)$ ..... $u(t) = 1000 \exp(5t)$ ..... $u(t) = 12 \exp(-3t)$
+- $u(t) = (1 - \exp(-\zeta t/m)) (q E_0/m) t$
+
+One differential equation often has many solutions.
+
+A differential equation involving a function of one variable, e.g. time $t$, is called an ordinary differential equation (ODE).
+
+## 3.2 The set of models $du/dt = f(u)$, $u(0) = u_0$
+
+The second way of thinking about a differential equation is as a rule that tells you, given the state of a system at time $t$, how it is going to change.
+
+In this case, for the model to make a prediction, we need to state an initial condition.
+
+A gene produces protein at a constant rate $a$ (copies per hour).
+The proteins are removed at a per-molecule rate $b$ (1/hrs).
+
+```{python}
+# dP/dt = a - b*P
+```
+
+If the protein promotes its own expression, then one model of this is:
+
+```{python}
+# dP/dt = (a_0 + a_1*P) - b*P
+```
+
+If the protein promotes its own degradation, then one model of this is:
+
+```{python}
+# dP/dt = a - (b_0 + b_1*P)*P
+```
+
+Question: why did the modeller choose to put an asymmetry between production (constant) and removal (linear)?
+
+## 3.3 Numerical ODEs
+
+### 3.3.1 Euler method, and more complicated methods
+
+Thinking about an ODE as a rule that states how a system will change, there is an obvious way to simulate numerical solutions: pick a small $dt$ and step forward just as you would for a discrete-time system.
+This is the Forward Euler method.
+
+```{python}
+#| label: fig-euler
+#| fig-cap: "Forward Euler solution of the self-activating gene model, at $dt = 0.01$ h."
+#| fig-alt: "A curve rising from zero and levelling off at about one hundred and sixty-seven molecules within about one and a half hours."
+dt = 0.01  # time step
+
+a_0 = 500  # molecules per hour
+a_1 = 1  # molecules per hour, per existing molecule of A
+b = 4  # 1/hrs
+
+nt_max = 200
+
+P = np.zeros(nt_max + 1)
+t_array = np.linspace(0, nt_max * dt, nt_max + 1)
+
+P[0] = 0  # initial condition
+
+for nt in range(nt_max):
+
+    dPdt = (a_0 + a_1 * P[nt]) - b * P[nt]  # "dPdt" is a convenient shorthand for "dP/dt"
+
+    P[nt + 1] = P[nt] + dPdt * dt
+
+# finished loop through time
+
+# plot it
+fig, ax = plt.subplots()
+ax.plot(t_array, P)
+ax.set_ylabel("Molecules of protein A")
+ax.set_xlabel("Time (hours)")
+plt.show()
+```
+
+### 3.3.1.1 Solving an ODE with a library solver
+
+Matlab has built-in ODE solvers that are very good; `ode45` is the usual first choice.
+Its counterpart here is `scipy.integrate.solve_ivp`, whose default method, `RK45`, is the same Runge--Kutta pair.
+Both choose their own timestep.
+
+The one thing to watch is the argument order.
+Matlab's solvers want `f(t, x)`; so does `solve_ivp`.
+And `solve_ivp` wants the initial condition as a *list*, even when there is only one variable, because internally the state is always a vector.
+
+```{python}
+#| label: fig-solve-ivp
+#| fig-cap: "The same model solved with an adaptive Runge--Kutta method. Each dot is a step the solver chose to take."
+#| fig-alt: "A curve rising from zero and levelling off near one hundred and sixty-seven, drawn through eleven dots that are crowded together at the start and far apart at the end, so the curve is visibly made of straight segments."
+dPdt = lambda P: (a_0 + a_1 * P) - b * P  # Define the ODE
+
+sol = solve_ivp(lambda t, x: dPdt(x), [0, 2.0], [0.0])
+
+T = sol.t
+P = sol.y[0]  # one row per state variable; this model has one
+
+fig, ax = plt.subplots()
+ax.plot(T, P, ".-")  # markers, so you can see where the solver actually evaluated
+ax.set_ylabel("Molecules of protein A")
+ax.set_xlabel("Time (hours)")
+plt.show()
+
+print(f"{T.size} steps taken")
+```
+
+That curve is visibly made of straight segments, and the Euler solution above is not, even though this is the more accurate method.
+The reason is that `solve_ivp` returns only the points it actually stopped at --- eleven of them --- and joining eleven points with straight lines looks like eleven straight lines.
+Matlab's `ode45` hides this by refining its output before handing it back.
+The fix, when you want a smooth curve, is to ask for one: pass `t_eval=np.linspace(0, 2, 500)` for the solution at times of your choosing, or `dense_output=True` for an interpolant you can evaluate anywhere.
+Neither makes the answer more accurate; they only fill in between the steps the solver already committed to.
+
+How big were those steps?
+
+```{python}
+#| label: fig-steps
+#| fig-cap: "Step size against time. The solver takes small steps while the solution is changing fast and large ones once it settles."
+#| fig-alt: "Points on a logarithmic vertical axis, low near time zero and rising by more than an order of magnitude as time increases."
+fig, ax = plt.subplots()
+ax.plot(T[:-1], np.diff(T), ".-")
+ax.set_yscale("log")
+ax.set_ylabel("step size (hours)")
+ax.set_xlabel("Time (hours)")
+plt.show()
+```
+
+Let's explore the solution for different values of $a_1$.
+
+```{python}
+#| label: fig-a1-sweep
+#| fig-cap: "The self-activating gene model for eight strengths of feedback."
+#| fig-alt: "Eight curves rising from zero; the five weakest settle at progressively higher plateaus and the three strongest run off the top of the axis without levelling off."
+fig, ax = plt.subplots()
+for a_1 in [0, 0.1, 0.5, 1, 3, 5, 7, 10]:
+
+    dPdt = lambda P, a_1=a_1: (a_0 + a_1 * P) - b * P  # Why do we need to redefine the ODE in the loop?
+
+    sol = solve_ivp(lambda t, x: dPdt(x), [0, 2.0], [0.0])
+
+    ax.plot(sol.t, sol.y[0], label=f"$a_1 = {a_1}$")
+
+ax.set_ylim(0, 1000)
+ax.set_ylabel("Molecules of protein A")
+ax.set_xlabel("Time (hours)")
+ax.legend(fontsize="small")
+plt.show()
+```
+
+Two things in that loop are worth pausing on.
+
+The Matlab version genuinely does need its ODE redefined inside the loop: `@(P)` freezes `a_1` at the moment the anonymous function is created, so a definition made before the loop would be stuck at the first value forever.
+Python's `lambda` has the opposite behaviour --- it looks `a_1` up when it is *called* --- and here that happens to be harmless, because each `lambda` is handed straight to `solve_ivp` and used before the loop moves on.
+
+The `a_1=a_1` default argument is therefore not load-bearing in this chunk, and it is here anyway because the moment you stop using a `lambda` immediately it becomes load-bearing.
+Collect these eight functions into a list and call them afterwards, and without the default every one of them reads the same `a_1` --- the last one --- and you get one curve drawn eight times.
+Pinning the value at definition is the idiom for that, and it costs nothing to write it every time.
+
+Also note the plateaus: at $a_1 > b$ the feedback outruns the removal and the model has no steady state to reach at all.
+
+## 3.4 Analytical examples
+
+Linear ODEs that look like
+
+$$ du/dt = a + b u $$
+
+have solutions $C_1 + C_2 \exp(bt)$.
+If $b > 0$, exponential growth; if $b < 0$, exponential decay.
+
+Not everything is so well behaved.
+Take
+
+$$ dx/dt = x^2, \qquad x(0) = 0.2 $$
+
+whose solution is $x(t) = 1/(5 - t)$: it reaches infinity at $t = 5$, which is called finite time blow-up.
+Ask a numerical solver to integrate to $t = 6$ and it cannot get there.
+
+```{python}
+sol = solve_ivp(lambda t, x: x**2, [0, 6.0], [0.2])
+
+print(sol.success)
+print(sol.message)
+print(f"got as far as t = {sol.t[-1]:.4f}, where x = {sol.y[0, -1]:.3e}")
+```
+
+The solver did not crash and it did not lie: it reports failure, and it stops just short of $t = 5$.
+A solver that returns something is not the same as a solver that succeeded, which is why `sol.success` is worth reading.
+
+## 3.5 Mini exercise: steady states, four ways
+
+What value does an ODE model go to at steady state?
+Whatever value makes $du/dt = 0$.
+
+Gene expression with some positive feedback in expression:
+
+`dPdt = lambda P: (a_0 + a_1 * P) - b * P`, with $a_1 = 0.5$.
+
+Plot `dPdt` against $P$ --- note this is different from `dPdt` against $t$.
+What steady state protein level does this predict?
+Then find the same number two other ways:
+
+a. Use symbolic math (and paper and pencil) to find the steady state.
+b. Use `solve_ivp` to find the steady state numerically.
+
+```{python}
+#| label: fig-phase-line
+#| fig-cap: "The phase line: $dP/dt$ against $P$. The steady state is where it crosses zero."
+#| fig-alt: "A straight line falling from five hundred at P equals zero, crossing the horizontal reference line at about one hundred and forty-three."
+# define ODE and parameters
+a_0 = 500  # molecules per hour
+a_1 = 0.5  # molecules per hour, per existing molecule of A
+b = 4  # 1/hrs
+
+dPdt = lambda P: (a_0 + a_1 * P) - b * P
+
+# Find the steady state by plotting dP/dt against P
+P_array = np.linspace(0, 200, 200)
+dPdt_phase_line = dPdt(P_array)
+
+fig, ax = plt.subplots()
+ax.plot(P_array, dPdt_phase_line, "r", label="dP/dt Phase Line")
+ax.plot([0, 200], [0, 0], label="reference line")  # horizontal line at dPdt=0
+ax.set_ylabel("dP/dt")
+ax.set_xlabel("P")
+ax.legend()
+plt.show()
+```
+
+The crossing can be found without reading it off the plot.
+`scipy.optimize.brentq` is the counterpart of Matlab's `fzero`: give it a function and a bracket it changes sign across, and it returns the root.
+
+```{python}
+from scipy.optimize import brentq
+
+P_steady = brentq(dPdt, 0, 200)
+print(f"steady state from brentq: {P_steady:.4f}")
+```
+
+```{python}
+# Find the steady state symbolically ("pencil and paper").
+# Set (a_0 + a_1*P) - b*P = 0 and solve for P. Write the formula here, then check it against the number above:
+```
+
+```{python}
+#| eval: false
+# Find the steady state by simulating the ODE.
+# Integrate far enough that P stops changing, then look at the last value.
+```
+
+## Your turn
+
+Repeat the whole exercise for the self-limiting model, $dP/dt = a - (b_0 + b_1 P) P$.
+Its phase line is a parabola, so think about how many steady states there are before you go looking for them.
+
+```{python}
+#| eval: false
+# Your code here.
+```

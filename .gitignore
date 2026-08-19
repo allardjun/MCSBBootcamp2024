@@ -18,3 +18,20 @@
 
 Module2/venv/**
 Module7/NPCSimulator/python/venv/**
+
+# The Python environment the Module 3 notebooks execute in.
+# Rebuilt from pyproject.toml and uv.lock with `uv sync`, both of which are committed, so there is nothing here worth tracking.
+.venv/
+**/__pycache__/
+
+# Quarto scratch and execution caches.
+# .jupyter_cache is what stops a notebook's python running once per output format; _freeze is quarto's own, which only takes effect on a whole-project render.
+# Neither is committed: both are derived from the .qmd and the locked environment.
+**/.quarto/
+Module3/.jupyter_cache/
+Module3/_freeze/
+
+# Rendered notebooks.
+# The .qmd is the source and the .ipynb is the deliverable a student opens, so both of those are committed. The .html is a preview for whoever is authoring, and <stem>_files/ holds the figures and javascript it needs; Module3/render.sh regenerates them.
+Module3/numericalCalculus_*.html
+Module3/numericalCalculus_*_files/

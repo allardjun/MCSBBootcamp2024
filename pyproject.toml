@@ -1,0 +1,32 @@
+# The Python environment the Module 3 notebooks execute in.
+#
+# This file and uv.lock beside it are the whole dependency story: `uv sync` builds an identical .venv from them on any machine, which is what keeps a figure baked into a rendered notebook and the same figure a student generates by running the .ipynb from being two different pictures.
+#
+# Deliberately identical to the environment in the private source repo that builds the course site, lockfile included, so a notebook developed there and a notebook run here are running against the same versions.
+#
+# Not a package --- there is nothing here to import or install, only a set of dependencies --- hence `package = false` below.
+
+[project]
+name = "mcsb-bootcamp"
+version = "0.1.0"
+description = "Execution environment for the MCSB Bootcamp lecture notebooks"
+requires-python = ">=3.12"
+
+dependencies = [
+  # The numerical stack the notebooks actually teach with.
+  "numpy>=2.0",
+  "scipy>=1.14",
+  "matplotlib>=3.9",
+  # Quarto executes a notebook through jupyter, so the build needs a kernel even though no human opens one.
+  #
+  # Held below 7 deliberately. ipykernel 7 is a rewrite of the kernel machinery, and VSCode's Jupyter extension hung indefinitely against it in a Codespace --- "Run All" never started, with no process burning any cpu, because the connection handshake never completed. Nothing catches this automatically, because every check executes notebooks through nbclient, which is a different path from the one a student uses.
+  # The whole point of this environment is that a student clicks Run and it works, so it tracks what the ecosystem is actually tested against rather than the newest release.
+  "ipykernel>=6.29,<7",
+  # Needed at run time rather than build time: a student opening the .ipynb in JupyterLab.
+  # It also supplies the `jupyter` command that `quarto check jupyter` looks for.
+  "jupyterlab>=4.2",
+  "jupyter-cache>=1.0.1",
+]
+
+[tool.uv]
+package = false

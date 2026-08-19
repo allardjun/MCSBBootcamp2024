@@ -1,0 +1,157 @@
+---
+title: "Numerical calculus 4: Systems of ODEs"
+subtitle: "MCSB Bootcamp --- Module 3"
+author: "Jun Allard"
+jupyter: python3
+format:
+  html:
+    toc: true
+    number-sections: false
+  ipynb: default
+---
+
+The Python translation of `numericalCalculus_4SystemsOfODEs.mlx`.
+
+```{python}
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_ivp
+```
+
+# 4. Multivariate differential equations
+
+If there are multiple quantities to track --- multiple molecules, or multiple species --- then an ODE model may be a system of coupled ODEs:
+
+$$ du/dt = f(u, w), \qquad dw/dt = g(u, w), \qquad u(0) = u_0, \quad w(0) = w_0 $$
+
+Here is gene expression where the protein is an activator: $u$ is RNA, $w$ is protein.
+
+```{python}
+#| label: fig-timeseries
+#| fig-cap: "RNA and protein concentrations approaching their steady state."
+#| fig-alt: "Two curves rising from zero, the red RNA curve levelling off just above the purple protein curve, both flat well before the end of the interval."
+f = lambda u, w: -10 * u + 6 * w + 0.1
+g = lambda u, w: -2 * w + 1.9 * u
+
+dxdt = lambda t, x: [f(x[0], x[1]), g(x[0], x[1])]
+
+sol = solve_ivp(dxdt, [0, 150], [0.0, 0.0], t_eval=np.linspace(0, 150, 1000))
+
+T = sol.t
+X = sol.y.T  # transposed so that X[:, 0] and X[:, 1] read like the Matlab version
+
+fig, ax = plt.subplots()
+ax.plot(T, X[:, 0], "-r")  # red for RNA
+ax.plot(T, X[:, 1], "-", color=[0.5, 0, 1])  # purple for protein
+ax.set_ylabel("Molecular concentration (micromolar)")
+ax.set_xlabel("Time (hours)")
+plt.show()
+```
+
+Two translation notes on that chunk.
+
+`solve_ivp` hands your function the whole state as one array `x` and expects the whole set of derivatives back as one list, which is exactly what `@(t,x)[f(x(1),x(2)); g(x(1),x(2))]` does in Matlab --- with the indices shifted by one.
+And it returns `sol.y` with one *row* per variable, where Matlab's `X` has one column per variable, hence the transpose.
+
+The `t_eval` argument asks for the solution at a thousand evenly spaced times.
+Without it you get only the steps the solver actually took, which is a much shorter list --- Matlab's `ode45` quietly refines its output for you, and `solve_ivp` does not.
+
+## 4.1 Phase plane and direction field
+
+For a two-variable system, the equivalent of a phase line is a phase plane.
+Instead of plotting each variable against time, plot them against each other, and draw the rule itself as a field of arrows: at each point $(u, w)$, an arrow pointing in the direction $(du/dt, dw/dt)$.
+
+```{python}
+#| label: fig-phase-plane
+#| fig-cap: "Direction field of the RNA--protein system, with the trajectory from the previous figure drawn through it."
+#| fig-alt: "A grid of small arrows sweeping towards a point in the lower left, with a red trajectory curving from the origin to a circular marker at that point."
+fig, ax = plt.subplots(figsize=(5.5, 5))
+ax.set_xlim(0, 0.2)
+ax.set_ylim(0, 0.2)
+ax.set_ylabel("Protein concentration (micromolar)")
+ax.set_xlabel("RNA concentration (micromolar)")
+
+u_array = np.linspace(0, 0.2, 16)
+w_array = np.linspace(0, 0.2, 16)
+
+u_mesh, w_mesh = np.meshgrid(u_array, w_array)
+
+# the plot command for a field of arrows:
+ax.quiver(u_mesh, w_mesh, f(u_mesh, w_mesh), g(u_mesh, w_mesh))
+
+ax.plot(X[:, 0], X[:, 1], "-r")
+ax.plot(X[-1, 0], X[-1, 1], "or")
+plt.show()
+```
+
+Two things about that picture are worth being careful with.
+
+- There are two different kinds of vector in it: a position in the plane, $(u, w)$, and a direction with a magnitude, $(du/dt, dw/dt)$. They live in different spaces and only one of them has units of concentration.
+- The arrows are drawn to a common scale chosen by the plotting library, so their relative lengths mean something and their absolute lengths do not.
+
+## 4.2 Mini exercise: spirals and other flow patterns
+
+Two-variable linear systems of ODEs can exhibit only a few patterns of behaviour.
+
+a. An attractive steady state where solutions spiral inwards.
+b. An attractive steady state where solutions do not spiral in.
+c. A repulsive steady state where solutions spiral outwards.
+d. A repulsive steady state where solutions do not spiral out.
+e. A pure oscillation.
+f. One more category not contained in the list --- there are at least two!
+g. Bonus: suppose again that these represent the concentrations of RNA and protein. What are the biological meanings of each of these behaviours?
+
+Find parameters that give one of each.
+You should be able to achieve all of them by varying only `a`, `b`, `c` and `d` below, negative numbers included.
+
+```{python}
+#| label: fig-flow-pattern
+#| fig-cap: "The starting point for the exercise: a direction field and one trajectory, for a system you are about to change."
+#| fig-alt: "A grid of arrows all lying along one diagonal, pointing up and to the right below the line y equals x and down and to the left above it, shrinking to nothing on the line itself, where a single marker sits at the starting point the trajectory never left."
+# parameters
+a = 1
+b = -1
+c = 1
+d = -1
+
+# model equations
+f = lambda x, y: a * x + b * y
+g = lambda x, y: c * x + d * y
+
+sol = solve_ivp(lambda t, x: [f(x[0], x[1]), g(x[0], x[1])], [0, 1000], [0.1, 0.1])
+X = sol.y.T
+
+fig, ax = plt.subplots(figsize=(5.5, 5))
+ax.set_xlim(-1, 1)
+ax.set_ylim(-1, 1)
+ax.set_ylabel("y")
+ax.set_xlabel("x")
+
+x_array = np.linspace(-1, 1, 16)
+y_array = np.linspace(-1, 1, 16)
+
+x_mesh, y_mesh = np.meshgrid(x_array, y_array)
+
+# the plot command for a field of arrows:
+ax.quiver(x_mesh, y_mesh, f(x_mesh, y_mesh), g(x_mesh, y_mesh))
+
+ax.plot(X[:, 0], X[:, 1], "-r")
+ax.plot(X[-1, 0], X[-1, 1], "or")
+plt.show()
+```
+
+Look closely at what those starting values do before you change them.
+With `a = 1, b = -1, c = 1, d = -1` the two equations are identical, so any solution starting on the line $x = y$ --- including the one above, which starts at $(0.1, 0.1)$ --- has $dx/dt = dy/dt = 0$ and never moves at all.
+That is category f.
+
+`f` and `g` read `a`, `b`, `c`, `d` when they are called rather than when they are defined, so editing the four numbers and re-running the chunk is enough; there is nothing to redefine.
+
+```{python}
+#| eval: false
+# Your parameters here. Change these four numbers, run this cell, then run the figure cell above again to see what they do.
+# Keep a note of which pattern each set gives you --- you are looking for seven of them.
+a = 1
+b = -1
+c = 1
+d = -1
+```

@@ -1,0 +1,321 @@
+---
+title: "Numerical calculus 2: Derivatives"
+subtitle: "MCSB Bootcamp --- Module 3"
+author: "Jun Allard"
+jupyter: python3
+format:
+  html:
+    toc: true
+    number-sections: false
+  ipynb: default
+---
+
+The Python translation of `numericalCalculus_2Derivatives.mlx`.
+
+# 2. Derivatives
+
+The same fluorescence signal as in notebook 1, sampled more finely.
+
+```{python}
+import numpy as np
+import matplotlib.pyplot as plt
+
+A = 1.1  # fluorescence intensity units
+omega = 2.6  # rad/s
+A_0 = 0.01
+
+u = lambda t: A * np.sin(omega * t) + A_0
+
+t_array = np.linspace(0, 1.6, 200)
+u_array = u(t_array)  # an array of samples of u
+```
+
+## 2.1 Rates of change, the numerical derivative, and the derivative via rules of differentiation
+
+For a given change in time $dt$, how much does $u$ change?
+Does it increase or decrease?
+
+```{python}
+#| label: fig-secant
+#| fig-cap: "The change in $u$ over half a second, starting at $t = 0.2$ s."
+#| fig-alt: "A sine curve with two vertical lines marking t and t plus dt, two horizontal lines marking the corresponding values of u, and a straight segment joining the two points on the curve."
+t_max = 1.6
+
+fig, ax = plt.subplots()
+ax.plot(t_array, u_array, "-b")
+ax.set_ylabel("u (fluorescence units)")
+ax.set_xlabel("t (seconds)")
+
+# time at which to compute the change
+t = 0.2  # seconds
+ax.plot([t, t], [-2, 2], "-g")  # vertical line
+
+# change in t
+dt = 0.5  # seconds
+ax.plot([t + dt, t + dt], [-2, 2], "-r")  # vertical line
+
+# change in u
+du = u(t + dt) - u(t)
+ax.plot([0, t_max], [u(t), u(t)], "-c")  # horizontal lines
+ax.plot([0, t_max], [u(t + dt), u(t + dt)], "-c")
+
+# slope
+ax.plot([t, t + dt], [u(t), u(t + dt)], "-k")  # slope line
+ax.set_ylim(-1.5, 1.5)
+plt.show()
+
+print(du / dt)  # fluorescence units per second
+```
+
+That slope depends on how big a step you took.
+Shrink $dt$ and watch where the ratio settles.
+
+```{python}
+#| label: fig-dt-sweep
+#| fig-cap: "The difference quotient at $t = 0.2$ s as the step shrinks over four orders of magnitude."
+#| fig-alt: "Crosses on a logarithmic horizontal axis, rising from about one and a half at large steps and flattening out near two point seven for the smallest steps."
+# time at which to compute the change
+t = 0.2  # seconds
+
+fig, ax = plt.subplots()
+for dt in [0.5, 0.2, 0.1, 0.05, 0.02, 0.01, 0.005, 0.002, 0.001, 0.0001]:
+
+    # rate of change
+    dudt = (u(t + dt) - u(t)) / dt  # 'dudt' is a convenient shorthand for 'du/dt', which cannot be a variable name
+
+    ax.plot(dt, dudt, "bx")
+
+# finished loop through dt's
+
+ax.set_ylabel("du/dt")
+ax.set_xlabel("dt")
+ax.set_xscale("log")
+plt.show()
+```
+
+The rate of change over an infinitesimally small period of time is the derivative.
+
+The numerical derivative --- properly, the finite difference estimate of the derivative --- is a subtraction and a division, done to the whole array at once:
+
+```{python}
+#| label: fig-first-derivative
+#| fig-cap: "Finite difference estimate of $du/dt$ across the whole sampled interval."
+#| fig-alt: "A cosine-shaped curve starting near its maximum of about three, crossing zero near t equals 0.6 seconds and reaching about minus three."
+dudt = np.diff(u_array) / np.diff(t_array)
+
+fig, ax = plt.subplots()
+ax.plot(t_array[:-1], dudt)  # How many samples of the derivative do you have?
+ax.set_ylabel("du/dt (fluorescence units per second)")
+ax.set_xlabel("t (seconds)")
+plt.show()
+
+print(f"{u_array.size} samples of u, {dudt.size} samples of du/dt")
+```
+
+`np.diff` is Matlab's `diff`, and it does the same thing to the length: differences between neighbours, so one fewer of them than there were samples.
+That is why the plot above is against `t_array[:-1]` and not against `t_array`.
+
+If you have an analytical formula for $u(t)$, there are shortcuts for computing the derivative on paper.
+These are the rules of differentiation.
+
+- $f(t) = t^2$, so $df/dt = ?$
+- $g(t) = A_g \sin(t^2) \exp(-4t/\tau)$, so $dg/dt = \ldots$
+
+The first one you can check against the numerical estimate.
+
+```{python}
+#| label: fig-f-derivative
+#| fig-cap: "$df/dt$ for $f(t) = t^2$, by finite differences and by the rules of differentiation."
+#| fig-alt: "Two straight lines rising from zero to about three point two, lying on top of each other."
+f_array = t_array**2
+dfdt = np.diff(f_array) / np.diff(t_array)
+
+fig, ax = plt.subplots()
+ax.plot(t_array[:-1], dfdt, "-b")  # the numerical derivative via finite differences
+ax.plot(t_array, 2 * t_array, "--r")  # the derivative via an analytical method
+ax.set_ylabel("df/dt")
+ax.set_xlabel("t")
+plt.show()
+```
+
+The second one is the point of the exercise: the numerical estimate costs you two lines whatever the function is.
+
+```{python}
+#| label: fig-g-derivative
+#| fig-cap: "Finite difference estimate of $dg/dt$ for a decaying chirp."
+#| fig-alt: "A curve with a large positive excursion near t equals zero point three, then oscillations that shrink rapidly towards zero."
+A_g = 7
+tau = 0.5
+
+g_array = A_g * np.sin(t_array**2) * np.exp(-4 / tau * t_array)
+
+dgdt = np.diff(g_array) / np.diff(t_array)  # numerical derivative via finite differences
+
+fig, ax = plt.subplots()
+ax.plot(t_array[:-1], dgdt)
+ax.set_ylabel("dg/dt")
+ax.set_xlabel("t")
+plt.show()
+```
+
+## 2.2 Higher derivatives and Taylor series
+
+The derivative of the derivative is called the second derivative.
+And so on.
+
+If you can estimate the first $n$ derivatives of a function at a point, then you can build a polynomial that matches all $n$ of them there.
+
+This is done on `u_black_box`, whose formula you have not been shown --- which is the point.
+The estimates below use nothing but its samples.
+
+```{python}
+#| label: fig-taylor
+#| fig-cap: "Taylor polynomials of degree 1 to 4 about $t = 0$, built from finite difference estimates of the derivatives of a function whose formula is hidden."
+#| fig-alt: "A thick black curve rising from about zero point five and flattening near one point two, with four coloured curves leaving the same starting point alongside it; each successive one stays close to the black curve for longer before peeling away."
+from u_black_box import u_black_box
+
+u_array = u_black_box(t_array)
+
+# finite-difference estimates of the first 4 derivatives
+dt = t_array[1] - t_array[0]
+
+dudt = np.diff(u_array) / dt
+d2udt2 = np.diff(dudt) / dt
+d3udt3 = np.diff(d2udt2) / dt
+d4udt4 = np.diff(d3udt3) / dt  # How many samples do you have for the nth derivative?
+
+# Taylor polynomials
+taylor1 = lambda t: u_array[0] + dudt[0] * t
+taylor2 = lambda t: u_array[0] + dudt[0] * t + 1 / 2 * d2udt2[0] * t**2
+taylor3 = lambda t: u_array[0] + dudt[0] * t + 1 / 2 * d2udt2[0] * t**2 + 1 / 6 * d3udt3[0] * t**3
+taylor4 = lambda t: (
+    u_array[0]
+    + dudt[0] * t
+    + 1 / 2 * d2udt2[0] * t**2
+    + 1 / 6 * d3udt3[0] * t**3
+    + 1 / 24 * d4udt4[0] * t**4
+)
+
+fig, ax = plt.subplots()
+ax.plot(t_array, u_array, "-k", linewidth=2, label="Black Box")
+
+ax.plot(t_array, taylor1(t_array), label="Degree 1")
+ax.plot(t_array, taylor2(t_array), label="Degree 2")
+ax.plot(t_array, taylor3(t_array), label="Degree 3")
+ax.plot(t_array, taylor4(t_array), label="Degree 4")
+
+ax.set_ylim(0, 2)
+ax.set_xlim(0, 0.5)
+ax.set_ylabel("u_black_box and its estimators")
+ax.set_xlabel("t")
+ax.legend(loc="upper left")
+plt.show()
+```
+
+Each `np.diff` costs one sample, so the fourth derivative is estimated from four fewer points than $u$ itself has.
+Every one of those differences also divides by a small number, which is why the next section is about noise.
+
+## 2.3 Mini exercise: sampling with a bit of noise
+
+The code below generates a sample of $u$ with a little bit of noise added.
+The noise is a Gaussian random variable with standard deviation `noise_sigma`, which starts at zero.
+
+a. Make a plot of the first derivative estimate from finite differences.
+b. Make a plot of the 2nd and 3rd derivatives estimated from finite differences.
+c. How much noise (measured by standard deviation) can you add and still get all 3 derivatives accurate to within 0.1 units, where accuracy is the absolute difference between the derivative from finite differences and the one from the analytical formula?
+d. (Bonus) That question measured accuracy as an absolute number. Discuss alternative measures of accuracy, and their pros and cons.
+
+Hint: you have `t_array.size` samples of $u$.
+How many do you have for `dudt`? How many for `d2udt2`?
+
+```{python}
+#| label: fig-noisy-samples
+#| fig-cap: "The sampled signal, with the noise amplitude set to zero to begin with."
+#| fig-alt: "A sine curve drawn as a dense line of plus markers."
+# ------------------------------------------------------
+A = 1.1  # fluorescence intensity units
+omega = 2.6  # rad/s
+A_0 = 0.01
+
+u = lambda t: A * np.sin(omega * t) + A_0
+
+t_array = np.linspace(0, 1.6, 200)
+u_array = u(t_array)  # an array of samples of u
+# ------------------------------------------------------
+
+# analytical solutions (in real life, we might not know these)
+dudt_exact = A * omega * np.cos(omega * t_array)
+d2udt2_exact = -A * omega**2 * np.sin(omega * t_array)
+d3udt3_exact = -A * omega**3 * np.cos(omega * t_array)
+
+# Take the sample and add a bit of noise.
+# The generator is seeded so that re-running this notebook gives the same noise twice; drop the seed if you would rather it did not.
+rng = np.random.default_rng(seed=0)
+
+noise_sigma = 0.0  # <-- this is the number to turn up
+u_observed = u(t_array) + noise_sigma * rng.standard_normal(t_array.shape)
+
+print(u_observed[:5])
+
+fig, ax = plt.subplots()
+ax.plot(t_array, u_observed, "+")
+ax.set_ylabel("u observed")
+ax.set_xlabel("t")
+plt.show()
+```
+
+### Partial solution below
+
+```{python}
+#| label: fig-three-derivatives
+#| fig-cap: "The first three finite difference derivatives against their analytical counterparts."
+#| fig-alt: "Three stacked panels; in each, a solid estimated curve lies on a dashed analytical curve, with the vertical range growing roughly seven-fold from panel to panel."
+# create finite-difference derivatives for first, second and third derivative
+dudt = np.diff(u_observed) / np.diff(t_array)
+d2udt2 = np.diff(dudt) / np.diff(t_array[:-1])
+d3udt3 = np.diff(d2udt2) / np.diff(t_array[:-2])
+
+# and plot them
+fig, axes = plt.subplots(3, 1, figsize=(6, 8), sharex=True)
+
+axes[0].plot(t_array[:-1], dudt)
+axes[0].plot(t_array, dudt_exact, "--r")
+axes[0].set_ylabel("dudt")
+
+axes[1].plot(t_array[:-2], d2udt2)
+axes[1].plot(t_array, d2udt2_exact, "--r")
+axes[1].set_ylabel("d2udt2")
+
+axes[2].plot(t_array[:-3], d3udt3)
+axes[2].plot(t_array, d3udt3_exact, "--r")
+axes[2].set_ylabel("d3udt3")
+axes[2].set_xlabel("t")
+
+fig.tight_layout()
+plt.show()
+```
+
+Comparing an estimate with the exact answer needs the two to be the same length, and after `np.diff` they are not.
+Numpy says so, loudly, where Matlab would broadcast the mismatch into a 199-by-200 matrix and let you carry on.
+
+```{python}
+print(f"dudt has {dudt.size} samples; dudt_exact has {dudt_exact.size}")
+print(np.max(np.abs(dudt - dudt_exact[:-1])) < 0.1)
+```
+
+Trimming the exact array is the quick fix used above, and it is not quite the honest one: a difference between neighbouring samples estimates the derivative *between* them, not at the left-hand one.
+Comparing at the midpoints is the better answer, and the two only look the same while the sampling is fine.
+
+```{python}
+t_mid = (t_array[:-1] + t_array[1:]) / 2
+print(np.max(np.abs(dudt - A * omega * np.cos(omega * t_mid))) < 0.1)
+```
+
+## Your turn
+
+Turn `noise_sigma` up --- start at `1e-4` --- re-run the two chunks above, and find where each of the three derivatives stops being usable.
+
+```{python}
+#| eval: false
+# Your code here.
+```
