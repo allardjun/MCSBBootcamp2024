@@ -67,14 +67,17 @@ Let $u(t)$ be the fluorescence signal from a microscope at time $t$, with $t$ in
 
 - $u(t) = A \sin(\omega t) + A_0$.
 - Functions are black boxes: you feed an input and get an output.
-- Two ways to define a function: in-line, `u = lambda t: t**2`, and in a separate file.
+- Two ways to define a function: in the notebook you are working in, and in a separate file.
 
-### Define a function in-line
+### Define a function in the notebook
 
-Matlab's anonymous function `u = @(t) A*sin(omega*t) + A_0` becomes a Python `lambda`.
+Matlab has two different ways of writing a function, and which one you get depends on where you put it: `u = @(t) ...` for a one-liner inside a script, and a `function ... end` block for one in an m-file of its own.
+Python has a single form, `def`, and it is written the same way in both places.
 
 ```{python}
-u = lambda t, A, omega, A_0: A * np.sin(omega * t) + A_0
+def u(t, A, omega, A_0):
+    return A * np.sin(omega * t) + A_0
+
 
 print(u(1.1, 0.1, 2.6, 0.01))  # t=1.1, A=0.1, omega=2.6, A_0=0.01
 ```
@@ -86,21 +89,20 @@ Python will let you name them, which the Matlab version cannot:
 print(u(t=1.1, A=0.1, omega=2.6, A_0=0.01))
 ```
 
-More often you want the parameters fixed and only $t$ free, so that `u` is a function of time alone:
+More often you want the parameters fixed and only $t$ free, so that `u` is a function of time alone.
+In Matlab you do that by writing the values into a new anonymous function, `u = @(t) A*sin(omega*t)+A_0`.
+In Python you give each parameter a default value, and then you simply do not pass it:
 
 ```{python}
-A = 1.3  # fluorescence intensity units
-omega = 2.6  # rad/s
-A_0 = 0.02
+def u(t, A=1.3, omega=2.6, A_0=0.02):
+    """Fluorescence signal at time t. A is in fluorescence intensity units, omega in rad/s."""
+    return A * np.sin(omega * t) + A_0
 
-u = lambda t: A * np.sin(omega * t) + A_0
 
 print(u(0.1))
 ```
 
-Careful: that `lambda` looks up `A`, `omega` and `A_0` when it is *called*, not when it is defined.
-Change `A` further down the notebook and every later call to `u` changes with it.
-Matlab's `@(t)` does the opposite --- it freezes the values as they were when the anonymous function was created --- so this is a real difference between the two languages, and one that eventually bites everybody.
+`u` is now a function of one argument as far as everything below is concerned, and the parameters are still there when you want them: `u(0.1, A=2.0)` overrides one and leaves the other two alone.
 
 ### A function defined in a separate file
 

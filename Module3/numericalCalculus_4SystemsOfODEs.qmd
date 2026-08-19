@@ -26,14 +26,22 @@ $$ du/dt = f(u, w), \qquad dw/dt = g(u, w), \qquad u(0) = u_0, \quad w(0) = w_0 
 
 Here is gene expression where the protein is an activator: $u$ is RNA, $w$ is protein.
 
+The Matlab version writes this as three anonymous functions: `f`, `g`, and a third that stacks them into the column vector `ode45` wants.
+One `def` does all of it, with the two equations sitting next to each other under the names they have in the maths.
+
 ```{python}
 #| label: fig-timeseries
 #| fig-cap: "RNA and protein concentrations approaching their steady state."
 #| fig-alt: "Two curves rising from zero, the red RNA curve levelling off just above the purple protein curve, both flat well before the end of the interval."
-f = lambda u, w: -10 * u + 6 * w + 0.1
-g = lambda u, w: -2 * w + 1.9 * u
+def dxdt(t, state):
+    """du/dt and dw/dt for the RNA-protein system, given the state [u, w]."""
+    u, w = state
 
-dxdt = lambda t, x: [f(x[0], x[1]), g(x[0], x[1])]
+    du_dt = -10 * u + 6 * w + 0.1
+    dw_dt = -2 * w + 1.9 * u
+
+    return [du_dt, dw_dt]
+
 
 sol = solve_ivp(dxdt, [0, 150], [0.0, 0.0], t_eval=np.linspace(0, 150, 1000))
 
@@ -48,10 +56,12 @@ ax.set_xlabel("Time (hours)")
 plt.show()
 ```
 
-Two translation notes on that chunk.
+Three notes on that chunk.
 
-`solve_ivp` hands your function the whole state as one array `x` and expects the whole set of derivatives back as one list, which is exactly what `@(t,x)[f(x(1),x(2)); g(x(1),x(2))]` does in Matlab --- with the indices shifted by one.
-And it returns `sol.y` with one *row* per variable, where Matlab's `X` has one column per variable, hence the transpose.
+`solve_ivp` hands your function the whole state as one array and expects the whole set of derivatives back as one list, which is exactly what `@(t,x)[f(x(1),x(2)); g(x(1),x(2))]` does in Matlab.
+Unpacking it with `u, w = state` on the first line, rather than indexing `state[0]` and `state[1]` throughout, is what lets the two equations below be read against the maths rather than decoded.
+
+`solve_ivp` returns `sol.y` with one *row* per variable, where Matlab's `X` has one column per variable, hence the transpose.
 
 The `t_eval` argument asks for the solution at a thousand evenly spaced times.
 Without it you get only the steps the solver actually took, which is a much shorter list --- Matlab's `ode45` quietly refines its output for you, and `solve_ivp` does not.
@@ -76,15 +86,22 @@ w_array = np.linspace(0, 0.2, 16)
 
 u_mesh, w_mesh = np.meshgrid(u_array, w_array)
 
+# The same dxdt as above, asked for the whole grid at once rather than one point at a time.
+du_mesh, dw_mesh = dxdt(0, [u_mesh, w_mesh])
+
 # the plot command for a field of arrows:
-ax.quiver(u_mesh, w_mesh, f(u_mesh, w_mesh), g(u_mesh, w_mesh))
+ax.quiver(u_mesh, w_mesh, du_mesh, dw_mesh)
 
 ax.plot(X[:, 0], X[:, 1], "-r")
 ax.plot(X[-1, 0], X[-1, 1], "or")
 plt.show()
 ```
 
-Two things about that picture are worth being careful with.
+`dxdt` was written to take one state and return one pair of derivatives, and it drew the whole grid without being changed.
+`u, w = state` unpacks a pair of 16-by-16 grids exactly as happily as it unpacks a pair of numbers, and every operation in the two equations is one numpy applies elementwise.
+This is worth noticing rather than passing over: writing a model for a single point and getting the field for free is a habit numpy rewards throughout.
+
+Two things about the picture itself are worth being careful with.
 
 - There are two different kinds of vector in it: a position in the plane, $(u, w)$, and a direction with a magnitude, $(du/dt, dw/dt)$. They live in different spaces and only one of them has units of concentration.
 - The arrows are drawn to a common scale chosen by the plotting library, so their relative lengths mean something and their absolute lengths do not.
@@ -114,11 +131,19 @@ b = -1
 c = 1
 d = -1
 
-# model equations
-f = lambda x, y: a * x + b * y
-g = lambda x, y: c * x + d * y
 
-sol = solve_ivp(lambda t, x: [f(x[0], x[1]), g(x[0], x[1])], [0, 1000], [0.1, 0.1])
+# model equations
+def dxdt(t, state):
+    """dx/dt and dy/dt for a general two-variable linear system."""
+    x, y = state
+
+    dx_dt = a * x + b * y
+    dy_dt = c * x + d * y
+
+    return [dx_dt, dy_dt]
+
+
+sol = solve_ivp(dxdt, [0, 1000], [0.1, 0.1])
 X = sol.y.T
 
 fig, ax = plt.subplots(figsize=(5.5, 5))
@@ -132,8 +157,10 @@ y_array = np.linspace(-1, 1, 16)
 
 x_mesh, y_mesh = np.meshgrid(x_array, y_array)
 
+dx_mesh, dy_mesh = dxdt(0, [x_mesh, y_mesh])
+
 # the plot command for a field of arrows:
-ax.quiver(x_mesh, y_mesh, f(x_mesh, y_mesh), g(x_mesh, y_mesh))
+ax.quiver(x_mesh, y_mesh, dx_mesh, dy_mesh)
 
 ax.plot(X[:, 0], X[:, 1], "-r")
 ax.plot(X[-1, 0], X[-1, 1], "or")
@@ -144,7 +171,7 @@ Look closely at what those starting values do before you change them.
 With `a = 1, b = -1, c = 1, d = -1` the two equations are identical, so any solution starting on the line $x = y$ --- including the one above, which starts at $(0.1, 0.1)$ --- has $dx/dt = dy/dt = 0$ and never moves at all.
 That is category f.
 
-`f` and `g` read `a`, `b`, `c`, `d` when they are called rather than when they are defined, so editing the four numbers and re-running the chunk is enough; there is nothing to redefine.
+`dxdt` reads `a`, `b`, `c`, `d` when it is called rather than when it is defined, so editing the four numbers and re-running the chunk is enough; there is nothing to redefine.
 
 ```{python}
 #| eval: false

@@ -111,17 +111,26 @@ Matlab has built-in ODE solvers that are very good; `ode45` is the usual first c
 Its counterpart here is `scipy.integrate.solve_ivp`, whose default method, `RK45`, is the same Runge--Kutta pair.
 Both choose their own timestep.
 
-The one thing to watch is the argument order.
-Matlab's solvers want `f(t, x)`; so does `solve_ivp`.
+Two things to watch.
+The model is a rule about $P$, but the solver insists on being given a function of *two* arguments, time first --- exactly as `ode45` does, which is why the Matlab version has to write `@(t,x)dPdt(x)`.
+Here that adapter is a two-line `def` of its own --- `rhs`, for the right-hand side of the equation --- rather than a wrapper written inside the call, so it has a name and gets reused below.
 And `solve_ivp` wants the initial condition as a *list*, even when there is only one variable, because internally the state is always a vector.
 
 ```{python}
 #| label: fig-solve-ivp
 #| fig-cap: "The same model solved with an adaptive Runge--Kutta method. Each dot is a step the solver chose to take."
 #| fig-alt: "A curve rising from zero and levelling off near one hundred and sixty-seven, drawn through eleven dots that are crowded together at the start and far apart at the end, so the curve is visibly made of straight segments."
-dPdt = lambda P: (a_0 + a_1 * P) - b * P  # Define the ODE
+def dPdt(P):
+    """The model: given the protein level P, how fast is P changing?"""
+    return (a_0 + a_1 * P) - b * P
 
-sol = solve_ivp(lambda t, x: dPdt(x), [0, 2.0], [0.0])
+
+def rhs(t, P):
+    """What solve_ivp asks for: a function of time and state. This model does not depend on time."""
+    return dPdt(P)
+
+
+sol = solve_ivp(rhs, [0, 2.0], [0.0])
 
 T = sol.t
 P = sol.y[0]  # one row per state variable; this model has one
@@ -164,9 +173,9 @@ Let's explore the solution for different values of $a_1$.
 fig, ax = plt.subplots()
 for a_1 in [0, 0.1, 0.5, 1, 3, 5, 7, 10]:
 
-    dPdt = lambda P, a_1=a_1: (a_0 + a_1 * P) - b * P  # Why do we need to redefine the ODE in the loop?
+    # Nothing is redefined here. Why does the Matlab version have to redefine the ODE inside the loop?
 
-    sol = solve_ivp(lambda t, x: dPdt(x), [0, 2.0], [0.0])
+    sol = solve_ivp(rhs, [0, 2.0], [0.0])
 
     ax.plot(sol.t, sol.y[0], label=f"$a_1 = {a_1}$")
 
@@ -177,14 +186,12 @@ ax.legend(fontsize="small")
 plt.show()
 ```
 
-Two things in that loop are worth pausing on.
+The answer to the question in that loop is that Matlab has to and Python does not.
+Matlab's `@(P)` freezes `a_1` at the moment the anonymous function is written, so an ODE defined before the loop would be stuck on the first value forever.
+`def` does the opposite: `dPdt` looks `a_1` up each time it is *called*, and it is called inside the loop, so changing the variable is enough and there is nothing to redefine.
 
-The Matlab version genuinely does need its ODE redefined inside the loop: `@(P)` freezes `a_1` at the moment the anonymous function is created, so a definition made before the loop would be stuck at the first value forever.
-Python's `lambda` has the opposite behaviour --- it looks `a_1` up when it is *called* --- and here that happens to be harmless, because each `lambda` is handed straight to `solve_ivp` and used before the loop moves on.
-
-The `a_1=a_1` default argument is therefore not load-bearing in this chunk, and it is here anyway because the moment you stop using a `lambda` immediately it becomes load-bearing.
-Collect these eight functions into a list and call them afterwards, and without the default every one of them reads the same `a_1` --- the last one --- and you get one curve drawn eight times.
-Pinning the value at definition is the idiom for that, and it costs nothing to write it every time.
+That is worth knowing in both directions.
+It is convenient here, and it is a nuisance the first time you save a function and call it much later, by which time the variables it reads may have moved on without it.
 
 Also note the plateaus: at $a_1 > b$ the feedback outruns the removal and the model has no steady state to reach at all.
 
@@ -206,7 +213,11 @@ whose solution is $x(t) = 1/(5 - t)$: it reaches infinity at $t = 5$, which is c
 Ask a numerical solver to integrate to $t = 6$ and it cannot get there.
 
 ```{python}
-sol = solve_ivp(lambda t, x: x**2, [0, 6.0], [0.2])
+def blow_up(t, x):
+    return x**2
+
+
+sol = solve_ivp(blow_up, [0, 6.0], [0.2])
 
 print(sol.success)
 print(sol.message)
@@ -223,7 +234,7 @@ Whatever value makes $du/dt = 0$.
 
 Gene expression with some positive feedback in expression:
 
-`dPdt = lambda P: (a_0 + a_1 * P) - b * P`, with $a_1 = 0.5$.
+`dPdt(P) = (a_0 + a_1*P) - b*P`, with $a_1 = 0.5$.
 
 Plot `dPdt` against $P$ --- note this is different from `dPdt` against $t$.
 What steady state protein level does this predict?
@@ -241,7 +252,10 @@ a_0 = 500  # molecules per hour
 a_1 = 0.5  # molecules per hour, per existing molecule of A
 b = 4  # 1/hrs
 
-dPdt = lambda P: (a_0 + a_1 * P) - b * P
+
+def dPdt(P):
+    return (a_0 + a_1 * P) - b * P
+
 
 # Find the steady state by plotting dP/dt against P
 P_array = np.linspace(0, 200, 200)

@@ -24,7 +24,11 @@ A = 1.1  # fluorescence intensity units
 omega = 2.6  # rad/s
 A_0 = 0.01
 
-u = lambda t: A * np.sin(omega * t) + A_0
+
+
+def u(t):
+    return A * np.sin(omega * t) + A_0
+
 
 t_array = np.linspace(0, 1.6, 200)
 u_array = u(t_array)  # an array of samples of u
@@ -185,16 +189,23 @@ d3udt3 = np.diff(d2udt2) / dt
 d4udt4 = np.diff(d3udt3) / dt  # How many samples do you have for the nth derivative?
 
 # Taylor polynomials
-taylor1 = lambda t: u_array[0] + dudt[0] * t
-taylor2 = lambda t: u_array[0] + dudt[0] * t + 1 / 2 * d2udt2[0] * t**2
-taylor3 = lambda t: u_array[0] + dudt[0] * t + 1 / 2 * d2udt2[0] * t**2 + 1 / 6 * d3udt3[0] * t**3
-taylor4 = lambda t: (
-    u_array[0]
-    + dudt[0] * t
-    + 1 / 2 * d2udt2[0] * t**2
-    + 1 / 6 * d3udt3[0] * t**3
-    + 1 / 24 * d4udt4[0] * t**4
-)
+
+
+def taylor1(t):
+    return u_array[0] + dudt[0] * t
+
+
+def taylor2(t):
+    return taylor1(t) + 1 / 2 * d2udt2[0] * t**2
+
+
+def taylor3(t):
+    return taylor2(t) + 1 / 6 * d3udt3[0] * t**3
+
+
+def taylor4(t):
+    return taylor3(t) + 1 / 24 * d4udt4[0] * t**4
+
 
 fig, ax = plt.subplots()
 ax.plot(t_array, u_array, "-k", linewidth=2, label="Black Box")
@@ -237,7 +248,11 @@ A = 1.1  # fluorescence intensity units
 omega = 2.6  # rad/s
 A_0 = 0.01
 
-u = lambda t: A * np.sin(omega * t) + A_0
+
+
+def u(t):
+    return A * np.sin(omega * t) + A_0
+
 
 t_array = np.linspace(0, 1.6, 200)
 u_array = u(t_array)  # an array of samples of u
