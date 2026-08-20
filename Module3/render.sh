@@ -27,7 +27,8 @@ export SOURCE_DATE_EPOCH
 
 cd "$MODULE_DIR"
 
-for qmd in numericalCalculus_*.qmd; do
+# Every .qmd in this directory, rather than a numericalCalculus_* glob: a new notebook added here should be picked up by being here, not by being named to match.
+for qmd in *.qmd; do
   stem=${qmd%.qmd}
   echo "--- $stem"
   # html first: the python executes once and jupyter-cache serves the second render, which is also what forces the two outputs to have come from the same run.

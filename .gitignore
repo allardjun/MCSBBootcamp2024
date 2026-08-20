@@ -33,5 +33,6 @@ Module3/_freeze/
 
 # Rendered notebooks.
 # The .qmd is the source and the .ipynb is the deliverable a student opens, so both of those are committed. The .html is a preview for whoever is authoring, and <stem>_files/ holds the figures and javascript it needs; Module3/render.sh regenerates them.
-Module3/numericalCalculus_*.html
-Module3/numericalCalculus_*_files/
+# Matched by extension rather than by notebook name, so a notebook added to this directory is covered by being here rather than by being named to match.
+Module3/*.html
+Module3/*_files/
