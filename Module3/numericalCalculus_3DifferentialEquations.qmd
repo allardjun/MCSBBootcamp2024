@@ -147,10 +147,35 @@ print(f"{T.size} steps taken")
 That curve is visibly made of straight segments, and the Euler solution above is not, even though this is the more accurate method.
 The reason is that `solve_ivp` returns only the points it actually stopped at --- eleven of them --- and joining eleven points with straight lines looks like eleven straight lines.
 Matlab's `ode45` hides this by refining its output before handing it back.
-The fix, when you want a smooth curve, is to ask for one: pass `t_eval=np.linspace(0, 2, 500)` for the solution at times of your choosing, or `dense_output=True` for an interpolant you can evaluate anywhere.
-Neither makes the answer more accurate; they only fill in between the steps the solver already committed to.
 
-How big were those steps?
+The fix is to ask for the times you want, with `t_eval`:
+
+```{python}
+#| label: fig-solve-ivp-smooth
+#| fig-cap: "The same solution, asked for at a thousand evenly spaced times instead of at the eleven the solver stopped at."
+#| fig-alt: "A smooth curve rising steeply from zero and levelling off near one hundred and sixty-seven, with no visible straight segments or corners."
+sol_smooth = solve_ivp(rhs, [0, 2.0], [0.0], t_eval=np.linspace(0, 2.0, 1000))
+
+T_smooth = sol_smooth.t
+P_smooth = sol_smooth.y[0]
+
+fig, ax = plt.subplots()
+ax.plot(T_smooth, P_smooth)
+ax.set_ylabel("Molecules of protein A")
+ax.set_xlabel("Time (hours)")
+plt.show()
+
+print(f"{T_smooth.size} points returned")
+```
+
+New names --- `sol_smooth` rather than `sol` --- because the next figure needs the original eleven steps, and overwriting `T` would replace them with a thousand evenly spaced times that the solver never took.
+
+Be clear about what `t_eval` did and did not do.
+It did not make the answer more accurate, and it did not make the solver work any harder: the same eleven steps were taken either way, and the extra points are interpolated between them from information the method already had.
+It changed what you were handed, not what was computed.
+`dense_output=True` is the same idea with the interpolant returned as a function, so you can evaluate it wherever you like afterwards rather than committing to a grid up front.
+
+So how big were the steps that were actually taken?
 
 ```{python}
 #| label: fig-steps
