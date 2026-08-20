@@ -1,0 +1,57 @@
+---
+title: "GRN Project 1"
+subtitle: "MCSB Bootcamp --- Module 6"
+author: "Jun Allard"
+jupyter: python3
+format:
+  html:
+    toc: true
+    number-sections: false
+  ipynb: default
+---
+
+The Python translation of `GRN_Project1.mlx`.
+
+Consider the simplified Guido--Collins system with an activator transcription factor and an inhibitor transcription factor.
+
+You may use the code in `GuidoCollins_simplified01.ipynb`, section 2.3 --- copy that cell in below and edit it.
+Its `dxdt` already takes both `C`, the activator concentration, and `I`, the inhibitor concentration, from the surrounding scope, so a sweep over either one is the same loop with a different variable moving.
+
+```{python}
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_ivp
+```
+
+```{python}
+#| eval: false
+# The model, copied from GuidoCollins_simplified01 section 2.3.
+```
+
+# HW1 part 1
+
+Assume the concentration of inhibitor is fixed at 10 uM.
+
+Plot the steady-state amount of protein as a function of the activator concentration, but make the axis showing concentration of activator a logarithmic axis.
+
+What is the concentration of activator that results in half its maximal effect?
+This is called the EC50 of the activator.
+
+```{python}
+#| eval: false
+# Your code here.
+```
+
+# HW1 part 2
+
+Assume the concentration of activator is fixed at 10 uM.
+
+Plot the steady-state amount of protein as a function of the inhibitor concentration.
+
+What is the concentration of inhibitor that results in half its maximal inhibition?
+This is called the IC50 of the inhibitor.
+
+```{python}
+#| eval: false
+# Your code here.
+```

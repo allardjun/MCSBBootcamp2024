@@ -1,4 +1,4 @@
-# The Python environment the Module 3 notebooks execute in.
+# The Python environment the Module 3 and Module 6 notebooks execute in.
 #
 # This file and uv.lock beside it are the whole dependency story: `uv sync` builds an identical .venv from them on any machine, which is what keeps a figure baked into a rendered notebook and the same figure a student generates by running the .ipynb from being two different pictures.
 #

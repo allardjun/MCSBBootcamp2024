@@ -1,0 +1,16 @@
+# Project settings shared by the Module 6 notebooks.
+#
+# No `output-dir` on purpose. In the private source repo the equivalent file sends renders into the built website; here the rendered `.ipynb` is the deliverable and it belongs beside the `.qmd` it came from, in the directory a student is already working in.
+#
+# No `format:` key either: each notebook declares its own, and a project-level format list would override them.
+project:
+  type: default
+
+# Execution results are cached and reused.
+#
+# `cache: true` is the one that works per-file, via jupyter-cache, so rendering the same notebook to html and then to ipynb runs the python once rather than twice --- which is also what forces the figure in the html and the figure in the notebook to have come from the same run.
+#
+# `freeze: auto` only takes effect on a whole-project render (`quarto render Module6`), where it re-executes only the notebooks whose `.qmd` has changed. It costs nothing when rendering one file at a time.
+execute:
+  freeze: auto
+  cache: true

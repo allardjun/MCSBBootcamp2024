@@ -1,0 +1,375 @@
+---
+title: "A simplified Guido--Collins model"
+subtitle: "MCSB Bootcamp --- Module 6"
+author: "Jun Allard"
+jupyter: python3
+format:
+  html:
+    toc: true
+    number-sections: false
+  ipynb: default
+---
+
+The Python translation of `GuidoCollins_simplified01.mlx`: a simplified version of the model from Guido, Collins et al., 2006.
+
+```{python}
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_ivp
+```
+
+# 1. Binding and unbinding of a TF to a promoter
+
+## 1.1 Timestepping simulation
+
+A transcription factor at concentration $C$ binds a promoter at rate $k_\text{on} C$ and falls off at rate $k_\text{off}$.
+Count the promoters in each state and step forward by hand, a second at a time.
+
+```{python}
+#| label: fig-timestepping
+#| fig-cap: "Bound and unbound promoters under forward Euler stepping, $dt = 1$ s."
+#| fig-alt: "Two curves crossing early on: green rising from zero and levelling off near sixty-seven, red falling from one hundred and levelling off near thirty-three."
+# parameters
+kon = 0.01  # attachment rate, s^-1 uM^-1
+koff = 0.005  # unbinding rate s^-1
+C = 1.0  # microMolar, concentration of transcription factor
+
+# initial conditions
+u_bound = 0
+u_unbound = 100  # the total number of times this promoter occurs in the system
+
+dt = 1  # second EVERY SECOND, update the number of bound and unbound promoters
+nt_max = 1000
+
+# storage, so the figure is drawn once at the end rather than a point at a time
+t_array = np.arange(1, nt_max + 1) * dt
+bound_array = np.zeros(nt_max)
+unbound_array = np.zeros(nt_max)
+
+for nt in range(nt_max):
+
+    # Work out both changes from the state at the start of the step, then apply them.
+    d_bound = (+kon * C * u_unbound - koff * u_bound) * dt
+    d_unbound = (-kon * C * u_unbound + koff * u_bound) * dt
+
+    u_bound = u_bound + d_bound
+    u_unbound = u_unbound + d_unbound
+
+    bound_array[nt] = u_bound
+    unbound_array[nt] = u_unbound
+
+# plot it
+fig, ax = plt.subplots()
+ax.plot(t_array, bound_array, "+g")
+ax.plot(t_array, unbound_array, "or")
+ax.set_ylabel("Number of promoters in each state")
+ax.set_xlabel("Time (seconds)")
+plt.show()
+```
+
+Two differences from the Matlab, neither of them about the model.
+
+The Matlab draws each marker as it is computed, inside the loop, which is a thousand calls to `plot`.
+Drawing that way in matplotlib is slow enough to notice, so the loop stores its numbers and the figure is drawn once at the end.
+
+Both changes are worked out before either is applied.
+The Matlab's second line instead uses the `u_bound` its first line has just overwritten, so the two equations are stepped one after the other rather than together, and the total number of promoters --- which the model conserves exactly --- drifts to 100.33 by the end of the run.
+Computing both changes first and then applying them holds it at 100.
+The gap is far too small to see in the figure, but it is the kind that grows with `dt` and with the length of the run, and the habit is worth having: a timestep updates the state from the state, not from a half-updated copy of it.
+
+## 1.2 A library solver
+
+Now let a solver choose the timestep.
+Matlab's `ode45` and `scipy.integrate.solve_ivp` are the same Runge--Kutta pair, and both want one function returning the whole set of derivatives.
+
+The Matlab writes that as three anonymous functions: `dbdt`, `dudt`, and a third that stacks them into a column vector.
+One `def` does all of it.
+Unpacking the state on the first line, `b, u = state`, is what lets the two equations below be read against the model rather than against `x(1)` and `x(2)`.
+
+```{python}
+#| label: fig-solver
+#| fig-cap: "The same two-state model, integrated with an adaptive Runge--Kutta method. Note $C$ has changed."
+#| fig-alt: "A green curve rising from zero to about eighty and a red curve falling from one hundred to about twenty, both flat well before the end of the interval."
+# parameters
+kon = 0.01  # attachment rate, s^-1 uM^-1
+koff = 0.005  # unbinding rate s^-1
+C = 2.0  # microMolar, concentration of transcription factor
+
+initial_condition = [0, 100]
+
+
+def dxdt(t, state):
+    """db/dt and du/dt for the promoter, given the state [bound, unbound]."""
+    b, u = state
+
+    db_dt = +kon * C * u - koff * b
+    du_dt = -kon * C * u + koff * b
+
+    return [db_dt, du_dt]
+
+
+sol = solve_ivp(dxdt, [0.0, 1000], initial_condition)
+
+T = sol.t
+X = sol.y.T  # transposed so that X[:, 0] and X[:, 1] read like the Matlab version
+
+fig, ax = plt.subplots()
+ax.plot(T, X[:, 0], "-g")  # green for bound
+ax.plot(T, X[:, 1], "-r")  # red for unbound
+ax.set_ylabel("Number of promoters in each state")
+ax.set_xlabel("Time (seconds)")
+plt.show()
+```
+
+`solve_ivp` returns `sol.y` with one *row* per variable, where Matlab's `X` has one column per variable, hence the transpose.
+
+## 1.3 Parameter sweep
+
+Run the model once for each of a thousand concentrations of transcription factor, and keep only the last value: the steady-state number of bound promoters.
+
+```{python}
+#| label: fig-sweep-binding
+#| fig-cap: "Steady-state bound promoters against transcription factor concentration."
+#| fig-alt: "A curve rising steeply from zero and bending over towards a plateau just below one hundred, the classic saturating binding curve."
+param_array = np.arange(0, 10.001, 0.01)
+b_storage = np.zeros(param_array.size)
+
+for i_param, C in enumerate(param_array):
+
+    # Nothing is redefined here.
+    # The Matlab has to rebuild dbdt, dudt and dxdt on every pass; dxdt above reads C when it is called rather than when it was defined, so assigning C is enough.
+
+    sol = solve_ivp(dxdt, [0.0, 1000], [0, 100])
+
+    b_storage[i_param] = sol.y[0, -1]
+
+fig, ax = plt.subplots()
+ax.plot(param_array, b_storage, "-b")
+ax.set_xlabel("Concentration of transcription factor (uM)")
+ax.set_ylabel("Number of bound promoters")
+# ax.set_xscale("log")
+plt.show()
+```
+
+# 2. mRNA and protein
+
+## 2.1 Creation and destruction of mRNA and protein
+
+Leave the promoter aside for a moment.
+mRNA is made at a constant rate and degrades; protein is made in proportion to the mRNA present and degrades.
+
+```{python}
+#| label: fig-mrna-protein
+#| fig-cap: "mRNA and protein rising to their steady states, the protein lagging behind."
+#| fig-alt: "A red curve rising fast and levelling off at ten, and a purple curve rising more slowly past it and levelling off at twenty."
+# parameters
+gamma_m = 0.2
+delta_m = 0.02
+gamma_p = 0.04
+delta_p = 0.02
+
+initial_condition = [0, 0]
+
+
+def dxdt(t, state):
+    """dm/dt and dp/dt for the mRNA-protein system, given the state [mRNA, protein]."""
+    m, p = state
+
+    dm_dt = +gamma_m - delta_m * m
+    dp_dt = +gamma_p * m - delta_p * p
+
+    return [dm_dt, dp_dt]
+
+
+sol = solve_ivp(dxdt, [0.0, 600], initial_condition)
+
+T = sol.t
+X = sol.y.T
+
+fig, ax = plt.subplots()
+ax.plot(T, X[:, 0], "-r")  # red for RNA
+ax.plot(T, X[:, 1], "-", color=[0.5, 0, 1])  # purple for protein
+ax.set_ylabel("Concentration of RNA (red) and product (purple)")
+ax.set_xlabel("Time (seconds)")
+plt.show()
+```
+
+## 2.2 Combine the RNA model with promoter binding state
+
+Now put the two halves together.
+The promoter has four states rather than two --- empty, repressor bound, activator bound, both bound --- and the rate at which mRNA is produced depends on which state it is in.
+
+`M` holds the rates of moving between the four states, so the first four derivatives come out of a single matrix--vector product.
+That is the Matlab's `M(t)*[x(1);x(2);x(3);x(4)]` block, written here as `M @ [p0, pr, pa, par]`.
+The last two derivatives are the mRNA and protein equations from 2.1, with the constant `gamma_m` replaced by a weighted sum over the promoter states.
+
+```{python}
+#| label: fig-promoter-states
+#| fig-cap: "Above, the promoter moving between its four states; below, the mRNA and protein that follow from it."
+#| fig-alt: "An upper panel with four curves: one falls from one towards zero, two rise to a bump near a quarter and come back down, and one rises to nine tenths. A lower panel has a red curve levelling off near twenty and a purple curve rising past it to about forty."
+# parameters
+kon = 0.001  # s^-1 uM^-1
+koff = 0.0005  # s^-1
+
+delta_m = 0.05
+gamma_p = 0.02
+delta_p = 0.01
+
+I = 10  # concentration of inhibitory transcription factor (uM)
+C = 10  # concentration of activatory transcription factor (uM)
+
+initial_condition = [1, 0, 0, 0, 0, 0]
+
+
+def dxdt(t, state):
+    """The four promoter states, then mRNA and protein."""
+    p0, pr, pa, par, m, p = state
+
+    M = np.array(
+        [
+            [-kon * C - kon * I, +koff * I, koff, 0],
+            [+kon * I, -koff * I - kon * C, 0, +koff],
+            [+kon * C, 0, -koff - kon * I, +koff],
+            [0, +kon * C, kon * I, -2 * koff],
+        ]
+    )
+
+    dpromoter_dt = M @ [p0, pr, pa, par]
+
+    # how fast mRNA is made, given which state the promoter is in
+    gamma_m = 1.0 * p0 + 0.0 * pr + 2.0 * pa + 1.0 * par
+
+    dm_dt = +gamma_m - delta_m * m
+    dp_dt = +gamma_p * m - delta_p * p
+
+    return [*dpromoter_dt, dm_dt, dp_dt]
+
+
+sol = solve_ivp(dxdt, [0.0, 1000], initial_condition)
+
+T = sol.t
+X = sol.y.T
+
+fig, (ax_promoter, ax_product) = plt.subplots(2, 1, figsize=(6, 7))
+
+ax_promoter.plot(T, X[:, 0:4])
+ax_promoter.set_ylabel("Number of promoters in each state")
+ax_promoter.set_xlabel("Time (seconds)")
+ax_promoter.legend(["Empty", "repressor", "activator", "both"])
+
+ax_product.plot(T, X[:, 4], "-r")  # red for RNA
+ax_product.plot(T, X[:, 5], "-", color=[0.5, 0, 1])  # purple
+ax_product.set_ylabel("Concentration of RNA (red) and product (purple)")
+ax_product.set_xlabel("Time (seconds)")
+
+fig.tight_layout()
+plt.show()
+```
+
+`return [*dpromoter_dt, dm_dt, dp_dt]` is the one piece of Python syntax here that is not in Module 3.
+`M @ [p0, pr, pa, par]` gives back an array of four numbers, and the `*` spreads them into the list rather than nesting them inside it, so what comes out is six derivatives and not four-and-two.
+It is the counterpart of stacking a column vector on top of two scalars with a semicolon.
+
+## 2.3 Parameter sweep across activator concentration
+
+Same sweep as 1.3, but over the concentration of activating transcription factor, and now reading off the steady-state protein.
+
+```{python}
+#| label: fig-sweep-activator
+#| fig-cap: "Steady-state product against activator concentration, with the inhibitor held at 10 uM."
+#| fig-alt: "A curve starting at about fifteen, rising steeply at first and then bending over, reaching about thirty-four at the right-hand edge on an axis that runs to forty."
+param_array = np.arange(0, 101, 1)
+
+# param_array = np.logspace(-1, 3, 200)  # uncomment to make a log plot
+
+g_storage = np.zeros(param_array.size)
+
+I = 10  # concentration of inhibitory transcription factor (uM) # EDIT for HW1
+
+for i_param, C in enumerate(param_array):  # concentration of activatory TF (uM) # EDIT for HW1
+
+    sol = solve_ivp(dxdt, [0.0, 100], [1, 0, 0, 0, 0, 0])
+
+    g_storage[i_param] = sol.y[5, -1]
+
+fig, ax = plt.subplots()
+ax.plot(param_array, g_storage, "-b")
+ax.set_xlabel("Concentration of activating TF (uM)")  # EDIT for HW1
+ax.set_ylabel("Concentration of product (uM)")
+ax.set_ylim(0, 40)
+# ax.set_xscale("log")  # uncomment to make a log plot
+plt.show()
+```
+
+## 2.4 Positive feedback
+
+Add a second gene on the same promoter whose protein is itself an activator of that promoter.
+The state grows from six variables to eight, and `M` now depends on one of them, `pb`, so the matrix has to be built inside `dxdt` on every call --- which it already was.
+
+```{python}
+#| label: fig-sweep-feedback
+#| fig-cap: "The same sweep with positive feedback added."
+#| fig-alt: "A curve of the same shape as the previous figure but starting at about twenty-six rather than fifteen, and reaching much the same value, about thirty-four, at the right-hand edge."
+param_array = np.arange(0, 101, 1)
+
+# param_array = np.logspace(-1, 3, 200)  # uncomment to make a log plot
+
+g_storage = np.zeros(param_array.size)
+
+# parameters
+kon = 0.001  # s^-1 uM^-1
+koff = 0.0005  # s^-1
+
+delta_m = 0.05
+gamma_p = 0.02
+delta_p = 0.01
+
+gamma_p2 = 0.1
+
+I = 10
+
+
+def dxdt(t, state):
+    """The four promoter states, then two mRNA-protein pairs, the second feeding back on the promoter."""
+    p0, pr, pa, par, m, p, mb, pb = state
+
+    M = np.array(
+        [
+            [-kon * (C + pb) - kon * I, +koff * I, koff, 0],
+            [+kon * I, -koff * I - kon * (C + pb), 0, +koff],
+            [+kon * (C + pb), 0, -koff - kon * I, +koff],
+            [0, kon * (C + pb), kon * I, -2 * koff],
+        ]
+    )
+
+    dpromoter_dt = M @ [p0, pr, pa, par]
+
+    gamma_m = 1.0 * p0 + 0.0 * pr + 2.0 * pa + 1.0 * par
+
+    dm_dt = +gamma_m - delta_m * m
+    dp_dt = +gamma_p * m - delta_p * p
+
+    dmb_dt = +gamma_m - delta_m * mb
+    dpb_dt = +gamma_p2 * mb - delta_p * pb
+
+    return [*dpromoter_dt, dm_dt, dp_dt, dmb_dt, dpb_dt]
+
+
+for i_param, C in enumerate(param_array):  # external activatory transcription factor
+
+    sol = solve_ivp(dxdt, [0.0, 100], [1, 0, 0, 0, 0, 0, 0, 0])
+
+    g_storage[i_param] = sol.y[5, -1]
+
+fig, ax = plt.subplots()
+ax.plot(param_array, g_storage, "-b")
+ax.set_xlabel("Concentration of activating TF (uM)")
+ax.set_ylabel("Concentration of product (uM)")
+ax.set_ylim(0, 40)
+# ax.set_xscale("log")  # uncomment to make a log plot
+plt.show()
+```
+
+Compare this curve with the one from 2.3.
+Both axes are the same, so the two are directly comparable, and the question the lecture asks is *how* the feedback moved the curve: by shifting the EC50 to the left, by lifting it at high $C$, by lifting it at low $C$, or by some combination of the three.
+Look at where each curve starts and where each one ends before answering.

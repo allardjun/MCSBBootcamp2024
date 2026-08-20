@@ -1,0 +1,45 @@
+---
+title: "GRN Project 2"
+subtitle: "MCSB Bootcamp --- Module 6"
+author: "Jun Allard"
+jupyter: python3
+format:
+  html:
+    toc: true
+    number-sections: false
+  ipynb: default
+---
+
+The Python translation of `GRN_Project2.mlx`.
+
+Five gene regulatory network motifs are simulated in `GRN_Lecture.ipynb`.
+These are:
+
+- Direct negative feedback
+- Indirect negative feedback
+- Double negative feedback
+- Incoherent feed-forward
+- Repressilator
+
+For most gene regulatory motifs, as an activating input is increased, the steady-state amount of protein increases gradually.
+The biological function of "ultrasensitivity" or "switch-like response" is a phenomenon where the steady-state amount of protein increases slowly, then suddenly, then slowly again.
+
+# HW2
+
+Find at least one of the five network motifs listed above that produces a switch-like response.
+Plot the amount of protein as a function of input concentration, showing the switch-like graph.
+
+None of the five motifs has an input in it yet, so the first thing to decide is where yours goes in.
+Section 4 of `GRN_Lecture.ipynb` is the one motif that already has an external input, and its `input_signal` is a step in time rather than the parameter you want to sweep --- so it is a starting point for the wiring rather than for the sweep.
+The sweep itself is the loop in section 2.3 of `GuidoCollins_simplified01.ipynb`: one `solve_ivp` per input concentration, keeping only the last value.
+
+```{python}
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_ivp
+```
+
+```{python}
+#| eval: false
+# Your code here.
+```

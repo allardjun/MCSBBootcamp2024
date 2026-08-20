@@ -19,7 +19,7 @@
 Module2/venv/**
 Module7/NPCSimulator/python/venv/**
 
-# The Python environment the Module 3 notebooks execute in.
+# The Python environment the Module 3 and Module 6 notebooks execute in.
 # Rebuilt from pyproject.toml and uv.lock with `uv sync`, both of which are committed, so there is nothing here worth tracking.
 .venv/
 **/__pycache__/
@@ -30,9 +30,13 @@ Module7/NPCSimulator/python/venv/**
 **/.quarto/
 Module3/.jupyter_cache/
 Module3/_freeze/
+Module6/.jupyter_cache/
+Module6/_freeze/
 
 # Rendered notebooks.
-# The .qmd is the source and the .ipynb is the deliverable a student opens, so both of those are committed. The .html is a preview for whoever is authoring, and <stem>_files/ holds the figures and javascript it needs; Module3/render.sh regenerates them.
+# The .qmd is the source and the .ipynb is the deliverable a student opens, so both of those are committed. The .html is a preview for whoever is authoring, and <stem>_files/ holds the figures and javascript it needs; each module's render.sh regenerates them.
 # Matched by extension rather than by notebook name, so a notebook added to this directory is covered by being here rather than by being named to match.
 Module3/*.html
 Module3/*_files/
+Module6/*.html
+Module6/*_files/

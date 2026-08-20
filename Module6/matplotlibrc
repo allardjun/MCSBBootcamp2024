@@ -1,0 +1,8 @@
+# Matplotlib settings for figures generated when the Module 6 notebooks are rendered.
+#
+# Picked up because matplotlib reads a matplotlibrc from the working directory, and quarto runs a notebook's kernel in the directory holding the .qmd --- this one.
+# It therefore applies to every notebook here and to nothing else; a student running the same .ipynb somewhere else is unaffected, which is fine, since this exists for the render's benefit rather than the figure's.
+
+# Element ids in an SVG are hashes salted, by default, with a value chosen fresh each session --- so two renders of an unchanged notebook produce two different files, differing in every id.
+# Pinning the salt makes them reproducible, so a re-render of an unedited notebook shows up as no change at all rather than as a diff in every figure.
+svg.hashsalt: mcsb-bootcamp
